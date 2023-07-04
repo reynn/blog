@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>Automate cross platform Golang builds with Jenkins :: Reynn Blog</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Quick start guide to building Golang binaries for multiple platforms using Jenkins 2.x" />
+<meta name="keywords" content="golang, ci, jenkins" />
+
+  <meta name="robots" content="noodp" />
+
+<link rel="canonical" href="http://blog.reynn.dev/posts/jenkins-cross-platform-builds/" />
+
+
+
+
+
+
+  
+  
+  
+  
+  
+  <link rel="stylesheet" href="http://blog.reynn.dev/styles.css">
+
+
+
+
+
+
+
+  <link rel="shortcut icon" href="http://blog.reynn.dev/img/theme-colors/red.png">
+  <link rel="apple-touch-icon" href="http://blog.reynn.dev/img/theme-colors/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Automate cross platform Golang builds with Jenkins">
+<meta property="og:description" content="Quick start guide to building Golang binaries for multiple platforms using Jenkins 2.x" />
+<meta property="og:url" content="http://blog.reynn.dev/posts/jenkins-cross-platform-builds/" />
+<meta property="og:site_name" content="Reynn Blog" />
+
+  
+  
+  <meta property="og:image" content="http://blog.reynn.dev/">
+
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="627">
+
+
+  <meta property="article:published_time" content="2017-04-23 06:03:58 -0400 EDT" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="http://blog.reynn.dev/">
+  <div class="logo">
+    Terminal
+  </div>
+</a>
+
+    </div>
+    
+    
+  </div>
+  
+</header>
+
+
+  <div class="content">
+    
+<article class="post">
+  <h1 class="post-title">
+    <a href="http://blog.reynn.dev/posts/jenkins-cross-platform-builds/">Automate cross platform Golang builds with Jenkins</a>
+  </h1>
+  <div class="post-meta"><time class="post-date">2017-04-23</time><span class="post-author">Nic Patterson</span><span class="post-reading-time">7 min read (1396 words)</span></div>
+
+  
+    <span class="post-tags">
+      
+      #<a href="http://blog.reynn.dev/tags/jenkins/">jenkins</a>&nbsp;
+      
+      #<a href="http://blog.reynn.dev/tags/ci/">ci</a>&nbsp;
+      
+      #<a href="http://blog.reynn.dev/tags/golang/">golang</a>&nbsp;
+      
+    </span>
+  
+  
+
+
+  
+    <div class="table-of-contents">
+      <h2>
+        Table of Contents
+      </h2>
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#requirements">Requirements</a>
+      <ul>
+        <li><a href="#expectations">Expectations</a></li>
+      </ul>
+    </li>
+    <li><a href="#step-1-go">Step 1: Go</a></li>
+    <li><a href="#step-2-jenkinsfile">Step 2: Jenkinsfile</a></li>
+    <li><a href="#step-3-commit-to-github">Step 3: Commit to GitHub</a></li>
+    <li><a href="#step-4-create-jenkins-job">Step 4: Create Jenkins job</a>
+      <ul>
+        <li><a href="#publish-binaries-to-artifactory">Publish binaries to Artifactory</a></li>
+      </ul>
+    </li>
+    <li><a href="#next-steps">Next Steps</a></li>
+  </ul>
+</nav>
+    </div>
+  
+
+  <div class="post-content"><div>
+        <p>Note: This was originally published on my Medium page <a href="https://medium.com/@reynn/automate-cross-platform-golang-builds-with-jenkins-ef7b07f1366e">here</a></p>
+<p>Go makes it really easy to cross-compile your apps. This can be advantageous for developers who want to reach the largest audience with their apps, or developers that want flexibility in where their apps are deployed to in production. Here we’ll walk through a simple example of how to utilize Jenkins 2.x pipeline to automate this process.</p>
+<h2 id="requirements">Requirements<a href="#requirements" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<ul>
+<li>Golang 1.5+ (we’ll be using 1.8 here)</li>
+<li>Jenkins 2.x with the Pipeline plugin</li>
+<li>GitHub or Bitbucket account</li>
+<li>Text editor of choice (Sublime Text, NeoVim, VS Code)</li>
+</ul>
+<h3 id="expectations">Expectations<a href="#expectations" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<ul>
+<li>Basic knowledge of Git and GitHub</li>
+<li>Basic experience with Go and how to structure a project.</li>
+</ul>
+<h2 id="step-1-go">Step 1: Go<a href="#step-1-go" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>Here is the small “Hello, World” type app written in Go that will work on any platform.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// Import the fmt for formatting strings
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// Import os so we can read environment variables from the system
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#f92672">import</span> (
+</span></span><span style="display:flex;"><span>	<span style="color:#e6db74">&#34;fmt&#34;</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#e6db74">&#34;os&#34;</span>
+</span></span><span style="display:flex;"><span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// create a function named getUserName that returns a single string
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">getUserName</span>() <span style="color:#66d9ef">string</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// On Linux and Mac the username is available as simply USER
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#a6e22e">username</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">os</span>.<span style="color:#a6e22e">Getenv</span>(<span style="color:#e6db74">&#34;USER&#34;</span>)
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// check if we got an empty string and attempt to get USERNAME instead which would be available on Windows
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">username</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;&#34;</span> {
+</span></span><span style="display:flex;"><span>		<span style="color:#a6e22e">username</span> = <span style="color:#a6e22e">os</span>.<span style="color:#a6e22e">Getenv</span>(<span style="color:#e6db74">&#34;USERNAME&#34;</span>)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// Return whatever we received
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">username</span>
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// entrypoint function for our app
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+</span></span><span style="display:flex;"><span>	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello, %s\n&#34;</span>, <span style="color:#a6e22e">getUserName</span>())
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="step-2-jenkinsfile">Step 2: Jenkinsfile<a href="#step-2-jenkinsfile" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>Jenkinsfiles were introduced in Jenkins 2 and allows you to define your build process and store it in source control, for more information refer to the documentation here. In this tutorial we will use our Jenkinsfile, using scripted pipeline syntax, to build 3 binaries (Windows, Linux and Mac) and archive them in Jenkins.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-groovy" data-lang="groovy"><span style="display:flex;"><span><span style="color:#75715e">#!/usr/bin/env groovy</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// this will start an executor on a Jenkins agent with the docker label
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>node<span style="color:#f92672">(</span><span style="color:#e6db74">&#39;docker&#39;</span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// Setup variables
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#75715e">// application name will be used in a few places so create a variable and use string interpolation to use it where needed
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  String applicationName <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;basic-app&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// a basic build number so that when we build and push to Artifactory we will not overwrite our previous builds
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  String buildNumber <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;0.1.${env.BUILD_NUMBER}&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// Path we will mount the project to for the Docker container
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  String goPath <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;/go/src/github.com/reynn/${applicationName}&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// Checkout the code from Github, stages allow Jenkins to visualize the different sections of your build steps in the UI
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  stage<span style="color:#f92672">(</span><span style="color:#e6db74">&#39;Checkout from GitHub&#39;</span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// No special needs here, if your projects relys on submodules the checkout step would need to be different
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    checkout scm
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// Start a docker container using the golang:1.8.0-alpine image, mount the current directory to the goPath we specified earlier
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  stage<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;Create binaries&#34;</span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    docker<span style="color:#f92672">.</span><span style="color:#a6e22e">image</span><span style="color:#f92672">(</span><span style="color:#e6db74">&#34;golang:1.8.0-alpine&#34;</span><span style="color:#f92672">).</span><span style="color:#a6e22e">inside</span><span style="color:#f92672">(</span><span style="color:#e6db74">&#34;-v ${pwd()}:${goPath}&#34;</span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e">// build the Mac x64 binary
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      sh <span style="color:#e6db74">&#34;cd ${goPath} &amp;&amp; GOOS=darwin GOARCH=amd64 go build -o binaries/amd64/${buildNumber}/darwin/${applicationName}-${buildNumber}.darwin.amd64&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e">// build the Windows x64 binary
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      sh <span style="color:#e6db74">&#34;cd ${goPath} &amp;&amp; GOOS=windows GOARCH=amd64 go build -o binaries/amd64/${buildNumber}/windows/${applicationName}-${buildNumber}.windows.amd64.exe&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e">// build the Linux x64 binary
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      sh <span style="color:#e6db74">&#34;cd ${goPath} &amp;&amp; GOOS=linux GOARCH=amd64 go build -o binaries/amd64/${buildNumber}/linux/${applicationName}-${buildNumber}.linux.amd64&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  stage<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;Archive artifacts&#34;</span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// Archive the binary files in Jenkins so we can retrieve them later should we need to audit them
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    archiveArtifacts artifacts: <span style="color:#e6db74">&#39;binaries/**&#39;</span><span style="color:#f92672">,</span> fingerprint: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span></code></pre></div><h2 id="step-3-commit-to-github">Step 3: Commit to GitHub<a href="#step-3-commit-to-github" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>We have the code, now we need it in source control, create a repository in GitHub and then use <code>git add . &amp;&amp; git commit -m 'initial' &amp;&amp; git push</code>.</p>
+<p><img src="images/2NdJEBxCgDhhUezivl4Zig.jpg" alt="git commands"></p>
+<h2 id="step-4-create-jenkins-job">Step 4: Create Jenkins job<a href="#step-4-create-jenkins-job" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>Now we get to add our code to Jenkins and watch it build our binaries for the first time. Go to your Jenkins server and log in if needed, we will create a new item which is listed on the left side. We can go with either a Pipeline or Multibranch job, multibranch is good if you want to make a complete pipeline that does certain things depending on what branch your code is committed to, regular pipeline is if you are doing some one off things that are not part of a larger pipeline but that you still want to be able to track in a source control system.</p>
+<p><img src="images/WDwQHm03-7mLMhg_XoyG9A.webp" alt="jenkins job create"></p>
+<p>The pipeline job structure just needs you to either give it a Jenkinsfile or point it at the SCM of your choice. Putting your Jenkinsfile content in directly can be really useful for testing, however we are going to point it our Github project.</p>
+<p><img src="images/uSoFyvsDncJCh3Go978dxQ.webp" alt="jenins source configuration"></p>
+<p>Here we are going to:</p>
+<ul>
+<li>Set the definition to “Pipeline script from SCM”</li>
+<li>Set the SCM to Git</li>
+<li>The repository URL will be either the SSH or HTTPS clone URL you can get from Jenkins, I tend to prefer SSH myself but whichever you are more comfortable with is fine here.</li>
+<li>Credentials will need to be either a credential with your username/password for HTTPS or your SSH private key for SSH checkout.</li>
+<li>Branches to build can be left on the default of */master</li>
+<li>Script Path can be used to give Jenkins an alternate path to your Jenkinsfile if you put it in a sub path or want to have it named something different.</li>
+<li>Lightweight checkout can be on or off here, if it is on it will try to only pull the Jenkinsfile instead of the entire repository. This can be useful if you have a large project with a lot of assets that does nothing at all on the Jenkins master.</li>
+</ul>
+<p>Once all of our information is set here press save. With the regular pipeline projects Jenkins will not start building the project automatically, multibranch pipelines do start building all branches with a Jenkinsfile as soon as configuration is complete. Once you are ready go ahead and press “Build Now” and wait for the build to complete. First build will take a bit longer since it will need to pull down the Docker image we specified but should complete in around 5 minutes or less.</p>
+<h3 id="publish-binaries-to-artifactory">Publish binaries to Artifactory<a href="#publish-binaries-to-artifactory" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<p>Thanks to Jenkins extensive plugins there are ways to do just about anything you may want to do in a CI/CD pipeline. A typical scenario in a pipeline like this is to publish your binaries to some kind of binary repo such as Jfrog Artifactory or Sonatype Nexus. With both of these we are going to be publishing as a generic artifact. We’ll assume you already have an Artifactory instance available to you for this, the OSS version is sufficient and is available as a Docker image if you want to quickly get up and running with it. Add the following code to your Jenkinsfile at the bottom before the end of the node(&lsquo;docker&rsquo;) closing brace.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-groovy" data-lang="groovy"><span style="display:flex;"><span>stage<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;Publish to Artifactory&#34;</span><span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// create a Artifactory server reference with some credentials we stored in Jenkins already
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">def</span> server <span style="color:#f92672">=</span> Artifactory<span style="color:#f92672">.</span><span style="color:#a6e22e">newServer</span> url: <span style="color:#e6db74">&#39;http://artifactory.example.com/artifactory&#39;</span><span style="color:#f92672">,</span> credentialsId: <span style="color:#e6db74">&#39;artifactory-credentials&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// Upload spec is a definition for the Artifactory plugin to tell it how and what to upload, and where in Artifactory it should go
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">def</span> uploadSpec <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;&#34;&#34;{
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;files&#34;: [
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;pattern&#34;: &#34;binaries/*&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;target&#34;: &#34;generic-local/golang/${applicationName}/&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;flat&#34;: false
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      }
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    ]
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">  }&#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// perform the upload
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  server<span style="color:#f92672">.</span><span style="color:#a6e22e">upload</span><span style="color:#f92672">(</span>uploadSpec<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span></code></pre></div><p>In the uploadSpec the target will need to start with a valid repository already set up in Artifactory, the rest of the path will be created on the fly if needed. With the flat parameter being set to false here so that it will keep the folder structure when publishing, this can be removed or set to true if you want to have all files in the same directory in Artifactory. Once you have this setup the way you want you can commit to Github with git commit -am &lsquo;add Artifactory publish&rsquo; &amp;&amp; git push then go back to Jenkins and press Build Now again. This time the build will be even faster since we already have the Docker image locally and after a few minutes you can go to Artifactory and see the newly created binaries.</p>
+<h2 id="next-steps">Next Steps<a href="#next-steps" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>So far we have created a basic pipeline that will build our app inside of a Docker container and we manage to get a binary for three different OSes. Inside of Jenkins we will be able to see the artifacts and download them directly from the UI. A few things to automate this further would be to setup a webhook in Github that points to your Jenkins instance so that when code is pushed up Jenkins will automatically build and produce your binaries.</p>
+<p>All code for this is available at <a href="https://github.com/reynn/jenkins-go-cross-compile">https://github.com/reynn/jenkins-go-cross-compile</a></p>
+
+      </div></div>
+
+  
+
+  
+    
+
+  
+</article>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2023 Powered by <a href="https://gohugo.io">Hugo</a></span>
+    
+      <span>:: <a href="https://github.com/panr/hugo-theme-terminal" target="_blank">Theme</a> made by <a href="https://github.com/panr" target="_blank">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.min.js"></script>
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>

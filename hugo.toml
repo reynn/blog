@@ -1,0 +1,11 @@
+baseURL = 'http://blog.reynn.dev/'
+languageCode = 'en-us'
+title = 'Reynn Blog'
+theme = 'terminal'
+
+[params]
+themeColor = 'red'
+readingTime = true
+# fullWidthTheme = true
+centerTheme = true
+Toc = true
